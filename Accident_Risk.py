@@ -59,7 +59,7 @@ def preprocess_data_with_embedding(train_df, test_df):
 
     return train_processed, test_processed, train_ids, test_ids, categorical_info
 
-# Enhanced Dataset with separate categorical and numerical features
+# Dataset with separate categorical and numerical features
 class AccidentDataset(Dataset):
     def __init__(self, df, target_col='accident_risk', is_test=False, scaler=None):
         self.df = df.reset_index(drop=True)
@@ -117,10 +117,10 @@ class AccidentDataset(Dataset):
             target_tensor = torch.tensor(self.targets[idx], dtype=torch.float32)
             return categorical_tensor, numerical_tensor, bool_tensor, target_tensor
 
-# Enhanced Model with Embeddings
+# Model with Embeddings
 class VAEPredictor(nn.Module):
     def __init__(self, categorical_info, numerical_dim=4, bool_dim=4, latent_dim=128):
-        super(EnhancedVAEPredictor, self).__init__()
+        super(VAEPredictor, self).__init__()
 
         # Embedding layers for categorical variables
         self.embeddings = nn.ModuleDict()
@@ -142,7 +142,7 @@ class VAEPredictor(nn.Module):
 
         total_input_dim = total_embedding_dim + numerical_dim + bool_dim
 
-        # Enhanced Encoder
+        # Encoder
         self.encoder = nn.Sequential(
             nn.Linear(total_input_dim, 512),
             nn.ReLU(),
@@ -159,7 +159,7 @@ class VAEPredictor(nn.Module):
         self.fc_mu = nn.Linear(128, latent_dim)
         self.fc_logvar = nn.Linear(128, latent_dim)
 
-        # Enhanced Predictor
+        # Predictor
         self.predictor = nn.Sequential(
             nn.Linear(latent_dim, 256),
             nn.ReLU(),
@@ -228,8 +228,8 @@ class VAEPredictor(nn.Module):
         else:
             return risk.squeeze()
 
-# Enhanced Loss Function
-def enhanced_vae_loss(risk_pred, targets, mu, logvar, input_features, reconstructed, alpha=0.8, beta=0.01):
+# Loss Function
+def vae_loss(risk_pred, targets, mu, logvar, input_features, reconstructed, alpha=0.8, beta=0.01):
     # Prediction loss
     pred_loss = F.mse_loss(risk_pred, targets)
 
@@ -267,7 +267,7 @@ def train_model(model, train_loader, epochs=30, lr=0.001):
             risk_pred, mu, logvar, input_features, reconstructed = model(categorical, numerical, boolean, training=True)
 
             # Calculate loss
-            loss, pred_loss, recon_loss, kl_loss = enhanced_vae_loss(
+            loss, pred_loss, recon_loss, kl_loss = vae_loss(
                 risk_pred, targets, mu, logvar, input_features, reconstructed
             )
 
@@ -290,7 +290,7 @@ def train_model(model, train_loader, epochs=30, lr=0.001):
         if avg_loss < best_loss:
             best_loss = avg_loss
             # Save best model
-            torch.save(model.state_dict(), 'best_enhanced_vae_model.pth')
+            torch.save(model.state_dict(), 'best_vae_model.pth')
 
     return model
 
@@ -300,14 +300,14 @@ train_processed, test_processed, train_ids, test_ids, categorical_info = preproc
 
 print("Categorical info:", {k: v['num_unique'] for k, v in categorical_info.items()})
 
-# Create enhanced datasets
+# Create datasets
 train_dataset = AccidentDataset(train_processed, target_col='accident_risk', is_test=False)
 test_dataset = AccidentDataset(test_processed, is_test=True, scaler=train_dataset.scaler)
 
 train_loader = DataLoader(train_dataset, batch_size=1024, shuffle=True, num_workers=2)
 test_loader = DataLoader(test_dataset, batch_size=1024, shuffle=False, num_workers=2)
 
-# Initialize enhanced model
+# Initialize model
 model = VAEPredictor(
     categorical_info,
     numerical_dim=4,  # num_lanes, curvature, speed_limit, num_reported_accidents
@@ -317,12 +317,12 @@ model = VAEPredictor(
 
 print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
-# Train enhanced model
+# Train model
 print("Training VAE Predictor...")
 model = train_model(model, train_loader, epochs=30, lr=0.001)
 
 # Load best model for prediction
-model.load_state_dict(torch.load('best_enhanced_vae_model.pth'))
+model.load_state_dict(torch.load('best_vae_model.pth'))
 model.eval()
 
 # Predict on test set
@@ -345,8 +345,8 @@ submission = pd.DataFrame({
 submission['accident_risk'] = submission['accident_risk'].clip(0, 1)
 
 # Save submission
-submission.to_csv('enhanced_vae_accident_predictions.csv', index=False)
-print("Submission file saved as 'enhanced_vae_accident_predictions.csv'")
+submission.to_csv('vae_accident_predictions.csv', index=False)
+print("Submission file saved as 'vae_accident_predictions.csv'")
 
 # Print statistics
 print(f"\nPrediction statistics:")
@@ -366,7 +366,7 @@ submission = pd.DataFrame({
 # Ensure predictions are between 0 and 1
 submission['accident_risk'] = submission['accident_risk'].clip(0, 1)
 
-submission_path = "/content/drive/MyDrive/playground-series-s5e10/enhanced_vae_accident_predictions.csv"
+submission_path = "/content/drive/MyDrive/playground-series-s5e10/vae_accident_predictions.csv"
 submission.to_csv(submission_path, index=False)
 print(f"Submission file saved to {submission_path}")
 
