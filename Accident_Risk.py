@@ -60,7 +60,7 @@ def preprocess_data_with_embedding(train_df, test_df):
     return train_processed, test_processed, train_ids, test_ids, categorical_info
 
 # Enhanced Dataset with separate categorical and numerical features
-class EnhancedAccidentDataset(Dataset):
+class AccidentDataset(Dataset):
     def __init__(self, df, target_col='accident_risk', is_test=False, scaler=None):
         self.df = df.reset_index(drop=True)
         self.is_test = is_test
@@ -118,7 +118,7 @@ class EnhancedAccidentDataset(Dataset):
             return categorical_tensor, numerical_tensor, bool_tensor, target_tensor
 
 # Enhanced Model with Embeddings
-class EnhancedVAEPredictor(nn.Module):
+class VAEPredictor(nn.Module):
     def __init__(self, categorical_info, numerical_dim=4, bool_dim=4, latent_dim=128):
         super(EnhancedVAEPredictor, self).__init__()
 
@@ -244,8 +244,8 @@ def enhanced_vae_loss(risk_pred, targets, mu, logvar, input_features, reconstruc
 
     return total_loss, pred_loss, recon_loss, kl_loss
 
-# Enhanced Training Function
-def train_enhanced_model(model, train_loader, epochs=30, lr=0.001):
+# Training Function
+def train_model(model, train_loader, epochs=30, lr=0.001):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
@@ -294,21 +294,21 @@ def train_enhanced_model(model, train_loader, epochs=30, lr=0.001):
 
     return model
 
-# Main Enhanced Pipeline
+# Main  Pipeline
 print("Preprocessing data with embeddings...")
 train_processed, test_processed, train_ids, test_ids, categorical_info = preprocess_data_with_embedding(train_df, test_df)
 
 print("Categorical info:", {k: v['num_unique'] for k, v in categorical_info.items()})
 
 # Create enhanced datasets
-train_dataset = EnhancedAccidentDataset(train_processed, target_col='accident_risk', is_test=False)
-test_dataset = EnhancedAccidentDataset(test_processed, is_test=True, scaler=train_dataset.scaler)
+train_dataset = AccidentDataset(train_processed, target_col='accident_risk', is_test=False)
+test_dataset = AccidentDataset(test_processed, is_test=True, scaler=train_dataset.scaler)
 
 train_loader = DataLoader(train_dataset, batch_size=1024, shuffle=True, num_workers=2)
 test_loader = DataLoader(test_dataset, batch_size=1024, shuffle=False, num_workers=2)
 
 # Initialize enhanced model
-model = EnhancedVAEPredictor(
+model = VAEPredictor(
     categorical_info,
     numerical_dim=4,  # num_lanes, curvature, speed_limit, num_reported_accidents
     bool_dim=4,       # 4 boolean columns
@@ -318,8 +318,8 @@ model = EnhancedVAEPredictor(
 print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
 # Train enhanced model
-print("Training Enhanced VAE Predictor...")
-model = train_enhanced_model(model, train_loader, epochs=30, lr=0.001)
+print("Training VAE Predictor...")
+model = train_model(model, train_loader, epochs=30, lr=0.001)
 
 # Load best model for prediction
 model.load_state_dict(torch.load('best_enhanced_vae_model.pth'))
